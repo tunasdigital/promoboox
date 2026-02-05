@@ -1,136 +1,79 @@
 "use client";
 
-type OfferTag = "HOJE" | "VALE";
+import React from "react";
+import Image from "next/image";
 
-export type Offer = {
+// Tipagem atualizada para refletir os dados reais do banco Redis
+export interface Offer {
   id: string;
-  title: string;
+  title?: string;
   store: string;
-  price: number; // em reais
-  oldPrice?: number;
-  tags?: OfferTag[];
-  href?: string; // por enquanto: link simples
-};
-
-function formatBRL(value: number) {
-  return value.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+  price: number | string;
+  oldPrice?: number | string;
+  imageUrl: string;      // Sincronizado com formData do Dashboard
+  productUrl: string;    // Sincronizado com formData do Dashboard
+  tags?: string[];
+  clicks?: number;
 }
 
-export default function OfferCard({
-  offer,
-  clicks,
-  onOpen,
-}: {
+interface OfferCardProps {
   offer: Offer;
   clicks: number;
   onOpen: () => void;
-}) {
-  const tag = offer.tags?.includes("HOJE")
-    ? "HOJE"
-    : offer.tags?.includes("VALE")
-    ? "VALE"
-    : null;
+}
+
+export default function OfferCard({ offer, clicks, onOpen }: OfferCardProps) {
+  // Fallback para garantir que sempre haja uma imagem, mesmo em erros de cadastro
+  const displayImage = offer.imageUrl || "/imagens/placeholder.png";
 
   return (
-    <article
-      className={[
-        "group relative overflow-hidden rounded-2xl border bg-white",
-        "border-slate-200 transition-all duration-200",
-        "hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-lg",
-        "focus-within:ring-2 focus-within:ring-yellow-400/30",
-      ].join(" ")}
+    <div 
+      onClick={onOpen}
+      className="group relative bg-white rounded-[2rem] border border-slate-100 p-5 shadow-sm hover:shadow-xl hover:-translate-y-1 transition-all cursor-pointer overflow-hidden"
     >
-      {/* imagem placeholder por enquanto */}
-      <div className="relative aspect-square w-full bg-slate-50">
-        {/* brilho amarelo sutil no hover */}
-        <div className="pointer-events-none absolute inset-0 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-          <div className="absolute -top-10 left-1/2 h-24 w-24 -translate-x-1/2 rounded-full bg-yellow-400/20 blur-2xl" />
+      {/* Badge de Loja e Clicks */}
+      <div className="flex justify-between items-start mb-4">
+        <span className="px-3 py-1 bg-slate-100 rounded-full text-[10px] font-black text-slate-500 uppercase tracking-tighter">
+          {offer.store}
+        </span>
+        <div className="flex flex-col items-end">
+          {offer.tags?.includes("VALE") && (
+            <span className="bg-[#0051FF] text-white text-[9px] font-black px-2 py-0.5 rounded-md mb-1">
+              VALE
+            </span>
+          )}
+          <span className="text-[9px] font-bold text-slate-400">Cliques: {clicks}</span>
         </div>
-
-        {/* micro-zoom sutil (sem imagem ainda, mas já prepara o efeito) */}
-        <div className="absolute inset-0 scale-[1.01] transition-transform duration-200 group-hover:scale-[1.04]" />
       </div>
 
-      {/* Loja */}
-      <div className="absolute left-3 top-3 rounded-md bg-white/95 px-2 py-1 text-[11px] font-semibold text-slate-700 shadow-sm">
-        {offer.store.toUpperCase()}
+      {/* Imagem do Produto - Usando a URL real do banco */}
+      <div className="relative w-full aspect-square mb-4 flex items-center justify-center bg-slate-50 rounded-2xl overflow-hidden">
+        <Image
+          src={displayImage}
+          alt={offer.title || "Oferta PromoBOOX"}
+          fill
+          className="object-contain p-4 group-hover:scale-110 transition-transform duration-500"
+          unoptimized // Útil para imagens externas da Lomadee
+        />
       </div>
 
-      {/* Selo */}
-      {tag ? (
-        <div
-          className={[
-            "absolute right-3 top-3 rounded-md px-2 py-1 text-[11px] font-semibold text-white shadow-sm",
-            tag === "HOJE" ? "bg-emerald-600" : "bg-indigo-600",
-          ].join(" ")}
-        >
-          {tag}
-        </div>
-      ) : null}
-
-      {/* Cliques */}
-      <div className="absolute left-3 top-9 text-[11px] font-semibold text-slate-700">
-        Cliques: <span className="text-slate-900">{clicks}</span>
-      </div>
-
-      {/* Conteúdo */}
-      <div className="absolute bottom-3 left-3 right-3">
-        <div className="text-2xl font-extrabold tracking-tight text-slate-900 transition-colors group-hover:text-slate-950">
-          {formatBRL(offer.price)}
-        </div>
-
-        {offer.oldPrice ? (
-          <div className="mt-0.5 text-[12px] font-medium text-slate-500 line-through">
-            {formatBRL(offer.oldPrice)}
-          </div>
-        ) : (
-          <div className="mt-0.5 text-[12px] font-medium text-slate-500">
-            &nbsp;
-          </div>
+      {/* Informações de Preço */}
+      <div className="space-y-1">
+        {offer.oldPrice && (
+          <span className="text-xs text-slate-400 line-through font-medium">
+            R$ {offer.oldPrice}
+          </span>
         )}
-
-        <div className="mt-1 text-[12px] font-medium text-slate-700 line-clamp-2">
-          {offer.title}
+        <div className="flex items-baseline gap-1">
+          <span className="text-2xl font-black text-slate-900">R$ {offer.price}</span>
         </div>
+        <p className="text-[11px] text-slate-500 font-medium leading-tight line-clamp-2 mt-2">
+          {offer.title || `Oferta especial na ${offer.store}`}
+        </p>
       </div>
 
-      {/* Hover overlay amarelo (marca) */}
-      <div className="absolute inset-0 opacity-0 transition-opacity duration-200 group-hover:opacity-100">
-        <div className="absolute inset-0 bg-gradient-to-t from-yellow-400/80 via-yellow-400/40 to-transparent" />
-
-        <div className="absolute inset-0 grid place-items-center">
-          <button
-            type="button"
-            onClick={onOpen}
-            className={[
-              "rounded-xl bg-white px-4 py-3 text-center shadow-md",
-              "transition-all duration-150",
-              "hover:-translate-y-0.5 hover:shadow-lg",
-              "active:scale-[0.97]",
-              "focus:outline-none focus-visible:ring-2 focus-visible:ring-white/70",
-            ].join(" ")}
-            title="Abrir oferta em nova aba"
-          >
-            <div className="text-xs font-semibold text-slate-900">
-              Abrir oferta
-            </div>
-            <div className="mt-1 text-[11px] text-slate-600">nova aba</div>
-          </button>
-        </div>
-      </div>
-
-      {/**
-       * O que alterei:
-       * - Corrigi o OfferCard.tsx (estava quebrando o build com string/JSX incompleto).
-       * - Mantive micro-efeitos de hover e troquei o overlay para amarelo da marca.
-       *
-       * O que esperar:
-       * - Build volta a compilar sem “Unterminated string constant”.
-       * - Hover fica com energia amarela (sem degradê escuro).
-       *
-       * Espera-se com esta alteração que:
-       * - O card continue premium e mais alinhado ao branding PromoBOOX.
-       */}
-    </article>
+      {/* Overlay Amarelo de Feedback (Branding) */}
+      <div className="absolute inset-0 bg-[#facc15] opacity-0 group-hover:opacity-[0.03] transition-opacity pointer-events-none" />
+    </div>
   );
 }
