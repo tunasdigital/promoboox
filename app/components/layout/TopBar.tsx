@@ -1,13 +1,14 @@
 "use client";
 
-import { useMemo, useState } from "react";
-import {
-  Flame,
-  Zap,
-  CheckCircle2,
-  Search,
-  User,
-} from "lucide-react";
+import type { ElementType, FormEvent } from "react";
+import { useState } from "react";
+import { Flame, Zap, CheckCircle2, Search, User } from "lucide-react";
+
+// ✅ Camada 02 (desacoplada)
+import CategoriesBar from "../categories/CategoriesBar";
+
+// ✅ Overlay desacoplado (Mapa)
+import CategoriesMap from "../categories/CategoriesMap";
 
 type TopBarProps = {
   subtitle: string;
@@ -17,8 +18,6 @@ type TopBarProps = {
   onResetClicks: () => void;
 };
 
-type Category = { label: string; href: string };
-
 export default function TopBar({
   subtitle,
   clicksTotal,
@@ -26,21 +25,12 @@ export default function TopBar({
   onRefresh,
   onResetClicks,
 }: TopBarProps) {
-  const categories: Category[] = useMemo(
-    () => [
-      { label: "Casa & Utilidades", href: "#casa" },
-      { label: "Eletrônicos", href: "#eletronicos" },
-      { label: "Informática", href: "#informatica" },
-      { label: "Acessórios", href: "#acessorios" },
-      { label: "Ferramentas", href: "#ferramentas" },
-      { label: "Ofertas do Dia", href: "#oferta-do-dia" },
-    ],
-    [],
-  );
-
   const [query, setQuery] = useState("");
 
-  function handleSearch(e: React.FormEvent) {
+  // ✅ Controle do overlay (desacoplado e limpo)
+  const [isCategoriesMapOpen, setIsCategoriesMapOpen] = useState(false);
+
+  function handleSearch(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const q = query.trim();
     const url = q
@@ -49,9 +39,25 @@ export default function TopBar({
     window.open(url, "_blank", "noopener,noreferrer");
   }
 
+  function handleOpenCategoriesMap() {
+    setIsCategoriesMapOpen(true);
+  }
+
+  function handleCloseCategoriesMap() {
+    setIsCategoriesMapOpen(false);
+  }
+
+  function handleSelectCategory(label: string) {
+    // ✅ Por enquanto só fecha (próximo passo: filtrar, navegar, etc.)
+    // Mantém desacoplado: TopBar não precisa saber de "categorias internas".
+    console.log("Categoria selecionada:", label);
+  }
+
   return (
     <header className="w-full border-b border-slate-200">
-      {/* Faixa azul topo */}
+      {/* =========================
+          CAMADA 00 — Identidade + Busca
+         ========================= */}
       <div className="w-full bg-blue-600">
         <div className="mx-auto flex w-full max-w-6xl items-center gap-5 px-6 py-3">
           {/* Logo */}
@@ -95,35 +101,20 @@ export default function TopBar({
           </form>
         </div>
 
-        {/* Linha inferior estilo Buscapé */}
+        {/* =========================
+            CAMADA 01 — Decisão rápida (TRAVADA)
+           ========================= */}
         <div className="w-full bg-blue-700">
           <div className="mx-auto flex w-full max-w-6xl items-center gap-6 px-6 py-2">
-            {/* Categorias */}
-            <div className="relative">
-              <details className="group">
-                <summary className="cursor-pointer list-none select-none text-sm font-semibold text-white/95 transition hover:text-white">
-                  ☰ Categorias
-                </summary>
-
-                <div className="absolute left-0 top-9 z-50 w-64 rounded-2xl border border-white/10 bg-white p-2 shadow-lg">
-                  {categories.map((c) => (
-                    <a
-                      key={c.label}
-                      href={c.href}
-                      className="block rounded-xl px-3 py-2 text-sm font-medium text-slate-800 transition hover:bg-slate-100"
-                    >
-                      {c.label}
-                    </a>
-                  ))}
-                </div>
-              </details>
-            </div>
-
-            {/* Links principais */}
+            {/* Links principais (travados) */}
             <nav className="flex items-center gap-6">
               <NavLink href="#ofertas" icon={Flame} label="Ofertas" />
               <NavLink href="#oferta-do-dia" icon={Zap} label="Oferta do Dia" />
-              <NavLink href="#vale-a-pena" icon={CheckCircle2} label="Vale a pena" />
+              <NavLink
+                href="#vale-a-pena"
+                icon={CheckCircle2}
+                label="Vale a pena"
+              />
 
               <a
                 href="#enviar"
@@ -162,22 +153,40 @@ export default function TopBar({
         </div>
       </div>
 
+      {/* =========================
+          CAMADA 02 — Categorias (DESACOPLADA)
+         ========================= */}
+      <CategoriesBar onOpenMap={handleOpenCategoriesMap} />
+
       {/* Subtítulo */}
       <div className="mx-auto w-full max-w-6xl px-6 py-3">
         <div className="text-sm text-slate-600">{subtitle}</div>
       </div>
 
+      {/* =========================
+          OVERLAY — CategoriesMap (DESACOPLADO)
+         ========================= */}
+      <CategoriesMap
+        isOpen={isCategoriesMapOpen}
+        onClose={handleCloseCategoriesMap}
+        onSelectCategory={handleSelectCategory}
+      />
+
       {/**
        * O que alterei:
-       * - Removi TODOS os emojis.
-       * - Adicionei ícones Lucide (finos, modernos) apenas onde faz sentido.
-       * - Categorias voltou para ☰ clássico.
+       * - Pluguei o CategoriesMap com estado real (isCategoriesMapOpen).
+       * - CategoriesBar agora abre o overlay (onOpenMap -> setIsCategoriesMapOpen(true)).
+       * - Fechamento centralizado via onClose.
+       * - Mantive desacoplado: TopBar só controla abrir/fechar; o mapa se resolve sozinho.
        *
        * O que esperar:
-       * - Navbar mais premium, limpa e profissional.
+       * - Ao clicar em “Categorias (mapa)”, o overlay abre.
+       * - ESC e clique fora fecham.
+       * - Selecionar uma categoria fecha e loga no console (base para próxima etapa).
        *
        * Espera-se com esta alteração que:
-       * - O topo pareça produto grande (Buscapé / Magalu / Zoom-level).
+       * - O fluxo de navegação por categorias esteja restaurado e estável.
+       * - A arquitetura em camadas fique preservada (TopBar sem poluição).
        */}
     </header>
   );
@@ -189,7 +198,7 @@ function NavLink({
   label,
 }: {
   href: string;
-  icon: React.ElementType;
+  icon: ElementType;
   label: string;
 }) {
   return (
